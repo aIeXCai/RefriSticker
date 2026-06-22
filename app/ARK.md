@@ -17,7 +17,7 @@
 - **图 1**：用户上传的旅行照片（base64）— 提供主体识别度与场景结构
 - **图 2**：风格参考图（base64）— 提供艺术语言
 
-风格参考图存放在 `app/public/style-refs/`，由共享服务模块在请求时读取并注入。Vercel Function 与本地 Vite 中间件复用 `app/server/generate-image.js`。
+风格参考图存放在 `app/public/style-refs/`。Vercel Function 传入当前部署的公开素材 URL，本地 Vite 中间件从文件系统读取；两者复用 `app/server/generate-image.js`。
 
 ## 当前生成尺寸
 

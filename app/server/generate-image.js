@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 import sharp from "sharp";
 
 const MODEL_ID = "doubao-seedream-5-0-260128";
@@ -10,11 +10,6 @@ const MAX_OUTPUT_IMAGE_BYTES = 3 * 1024 * 1024;
 const allowedSizes = new Set(["1728x2304", "2048x2048", "2304x1728"]);
 const allowedStyles = new Set(["illustration", "chinese", "comic"]);
 const imageMimePrefix = /^data:image\/(jpeg|png|webp|bmp|tiff|gif|heic|heif);base64,/i;
-const styleReferencePaths = {
-  illustration: fileURLToPath(new URL("../public/style-refs/illustration.png", import.meta.url)),
-  chinese: fileURLToPath(new URL("../public/style-refs/chinese.png", import.meta.url)),
-  comic: fileURLToPath(new URL("../public/style-refs/comic.png", import.meta.url)),
-};
 
 function imageBytes(dataUrl) {
   const comma = dataUrl.indexOf(",");
@@ -23,7 +18,8 @@ function imageBytes(dataUrl) {
   return Math.floor(base64Length * 0.75);
 }
 function loadStyleReference(style) {
-  return `data:image/png;base64,${readFileSync(styleReferencePaths[style]).toString("base64")}`;
+  const path = resolve(process.cwd(), "public", "style-refs", `${style}.png`);
+  return `data:image/png;base64,${readFileSync(path).toString("base64")}`;
 }
 
 async function fitOutputForVercel(base64) {
@@ -55,7 +51,7 @@ function fail(status, error) {
   return { status, body: { error } };
 }
 
-export async function generateImage(body, apiKey = process.env.ARK_API_KEY) {
+export async function generateImage(body, apiKey = process.env.ARK_API_KEY, options = {}) {
   if (!apiKey) return fail(503, "尚未配置 ARK_API_KEY，请在部署环境中配置后重新部署");
 
   const { prompt, image, style, size } = body || {};
@@ -76,7 +72,7 @@ export async function generateImage(body, apiKey = process.env.ARK_API_KEY) {
       body: JSON.stringify({
         model: MODEL_ID,
         prompt: prompt.trim(),
-        image: [image, loadStyleReference(style)],
+        image: [image, options.styleReference || loadStyleReference(style)],
         size,
         response_format: "b64_json",
         output_format: "jpeg",
