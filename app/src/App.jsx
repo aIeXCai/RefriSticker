@@ -128,6 +128,36 @@ async function imageSourceToDataUrl(source) {
   });
 }
 
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error("无法压缩上传照片"));
+    reader.readAsDataURL(blob);
+  });
+}
+
+function canvasToJpegBlob(canvas, quality) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("无法压缩上传照片")), "image/jpeg", quality);
+  });
+}
+
+async function encodeReferenceForUpload(canvas) {
+  const maxBytes = 2.7 * 1024 * 1024;
+  for (const quality of [.86, .78, .7]) {
+    const blob = await canvasToJpegBlob(canvas, quality);
+    if (blob.size <= maxBytes) return blobToDataUrl(blob);
+  }
+
+  const reduced = document.createElement("canvas");
+  const scale = Math.min(1, 1400 / Math.max(canvas.width, canvas.height));
+  reduced.width = Math.round(canvas.width * scale);
+  reduced.height = Math.round(canvas.height * scale);
+  reduced.getContext("2d").drawImage(canvas, 0, 0, reduced.width, reduced.height);
+  return blobToDataUrl(await canvasToJpegBlob(reduced, .76));
+}
+
 async function renderReferenceImage(source, selectedFormat, crop) {
   const dataUrl = await imageSourceToDataUrl(source);
   const image = await new Promise((resolve, reject) => {
@@ -136,7 +166,10 @@ async function renderReferenceImage(source, selectedFormat, crop) {
     element.onerror = () => reject(new Error("无法处理上传的照片"));
     element.src = dataUrl;
   });
-  const { width, height } = selectedFormat.generation;
+  const generation = selectedFormat.generation;
+  const outputScale = Math.min(1, 1800 / Math.max(generation.width, generation.height));
+  const width = Math.round(generation.width * outputScale);
+  const height = Math.round(generation.height * outputScale);
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
@@ -157,7 +190,7 @@ async function renderReferenceImage(source, selectedFormat, crop) {
   context.rotate((crop.rotation || 0) * Math.PI / 180);
   context.drawImage(image, -image.naturalWidth * scale / 2, -image.naturalHeight * scale / 2, image.naturalWidth * scale, image.naturalHeight * scale);
   context.restore();
-  return canvas.toDataURL("image/jpeg", .92);
+  return encodeReferenceForUpload(canvas);
 }
 
 const templateLayerPresets = {

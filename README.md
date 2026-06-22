@@ -210,10 +210,13 @@ RefriSticker/
 │   │   ├── styles.css            # 全部样式
 │   │   └── assets/               # 内置示例图与风格预览
 │   ├── prompts/
-│   │   └── refri-sticker-v1.md   # ⭐ 版本化提示词源
+│   │   └── refri-sticker-v2.md   # ⭐ 版本化提示词源
 │   ├── public/
 │   │   └── assets/               # 静态资源
-│   ├── vite.config.mjs           # ⭐ 内含 /api/generate-image 中间件
+│   ├── api/                      # Vercel Functions 入口
+│   ├── server/                   # ⭐ Seedream 共享服务逻辑
+│   ├── vite.config.mjs           # 本地开发 API 中间件
+│   ├── vercel.json               # Vercel 区域、超时与文件配置
 │   ├── package.json
 │   ├── AGENTS.md                 # 设计与实现约束
 │   ├── ARK.md                    # 火山引擎 Ark 接入文档

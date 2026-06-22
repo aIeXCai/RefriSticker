@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "regions": ["hkg1"],
+  "functions": {
+    "api/generate-image.js": {
+      "maxDuration": 300,
+      "includeFiles": "public/style-refs/**"
+    }
+  }
+}

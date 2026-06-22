@@ -17,7 +17,7 @@
 - **图 1**：用户上传的旅行照片（base64）— 提供主体识别度与场景结构
 - **图 2**：风格参考图（base64）— 提供艺术语言
 
-风格参考图存放在 `app/public/style-refs/`，由中间件在请求时读取并注入。后端不依赖前端把这些图传过来。
+风格参考图存放在 `app/public/style-refs/`，由共享服务模块在请求时读取并注入。Vercel Function 与本地 Vite 中间件复用 `app/server/generate-image.js`。
 
 ## 当前生成尺寸
 
@@ -27,7 +27,7 @@
 | 1:1 方形 | 头像贴纸、社交方图 | 2048 × 2048 |
 | 4:3 横版 | 横版横幅、桌面壁纸 | 2304 × 1728 |
 
-均为 2K 起步，输出 PNG，水印关闭。
+均为 2K 起步。Ark 输出 JPEG 后由服务端压缩到 3MB 内以满足 Vercel 限制；用户最终下载仍由 Canvas 导出 PNG。
 
 ## 关键请求参数
 
@@ -38,6 +38,7 @@
 | `image` | 2 张 Base64 数组 | 多图融合 |
 | `size` | `1728x2304` 等 | 必须命中白名单 |
 | `response_format` | `b64_json` | 避免 24 小时 URL 过期 |
+| `output_format` | `jpeg` | 控制 Serverless 响应体积 |
 | `watermark` | `false` | 关闭"AI 生成"水印，RefriSticker 自带品牌水印 |
 | `sequential_image_generation` | `disabled` | 关闭组图，本次只生成一张 |
 
@@ -51,9 +52,13 @@
 | 404 | 模型不存在 | 确认模型 ID 仍有效 |
 | 429 | 请求过频 | 请稍后再试 |
 | 500 | 服务异常 | 请重试 |
-| 504 | 超时（120s） | 请重试 |
+| 504 | 超时（240s） | 请重试 |
 | `InsufficientBalance` | 余额不足 | 前往方舟控制台充值 |
 
 ## 提示词模板
 
-`app/prompts/refri-sticker-v1.md` 按章节组合：`base + style.<风格> + composition.<比例> + negative`。修改后 Vite 自动热更新，无需重启。
+`app/prompts/refri-sticker-v2.md` 按章节组合：`base + style.<风格> + composition.<比例> + negative`。修改后 Vite 自动热更新，无需重启。
+
+## Vercel
+
+生产入口为 `app/api/generate-image.js`；部署参数和验证步骤见 `app/VERCEL.md`。
