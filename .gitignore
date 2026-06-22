@@ -1,0 +1,34 @@
+# Dependencies
+app/node_modules/
+.npm-cache/
+
+# Build output
+app/dist/
+build/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# macOS / Windows
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Process / scratch artifacts (not part of source)
+prototype-*.png
+qa-*.png
+qa-*.html
+reference-design.png
