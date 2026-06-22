@@ -17,7 +17,7 @@ import {
   PiTextAa,
   PiX,
 } from "react-icons/pi";
-import { buildPrompt, promptVersion } from "./prompt-builder";
+import { buildPrompt } from "./prompt-builder";
 import illustrationPreview from "./assets/style-preview-illustration-v3.png";
 import chinesePreview from "./assets/style-preview-chinese-v3.png";
 import comicPreview from "./assets/style-preview-comic-v3.png";
@@ -35,10 +35,21 @@ const formatOptions = [
 ];
 
 const templateOptions = [
-  { id: "white", label: "白色说明栏", desc: "白底标题栏，经典旅行纪念卡", previewFormat: "landscape" },
-  { id: "dark", label: "深色融合栏", desc: "深绿标题栏融入插画底部", previewFormat: "landscape" },
-  { id: "collector", label: "细框收藏卡", desc: "米白衬纸与双线装帧", previewFormat: "portrait" },
+  { id: "white", label: "浅色说明栏", desc: "浅色标题栏，经典旅行纪念卡", previewFormat: "landscape" },
+  { id: "dark", label: "深色标题栏", desc: "深色标题栏追加在插画下方", previewFormat: "landscape" },
+  { id: "collector", label: "细框收藏卡", desc: "主题衬纸与双线装帧", previewFormat: "portrait" },
 ];
+
+const themeOptions = [
+  { id: "classic", label: "米白 · 复古绿", paper: "#F6EEDB", accent: "#173F3B" },
+  { id: "wine", label: "奶油白 · 酒红", paper: "#FFF8E8", accent: "#7A263A" },
+  { id: "navy", label: "暖灰 · 海军蓝", paper: "#D8D3C8", accent: "#203A5F" },
+  { id: "kraft", label: "牛皮纸 · 深棕", paper: "#C69A63", accent: "#3B2416" },
+];
+
+function getTheme(theme = "classic") {
+  return themeOptions.find((item) => item.id === theme) || themeOptions[0];
+}
 
 const fontGroups = [
   {
@@ -164,20 +175,20 @@ const templateLayerPresets = {
   },
 };
 
-function createTemplateLayers(template = "white", fields = { caption: "KIYOMIZU-DERA, KYOTO", date: "AUTUMN SPLENDOR IN OLD JAPAN" }) {
+function createTemplateLayers(template = "white", fields = { caption: "KIYOMIZU-DERA, KYOTO", date: "AUTUMN SPLENDOR IN OLD JAPAN" }, theme = "classic") {
   const preset = templateLayerPresets[template] || templateLayerPresets.white;
+  const palette = getTheme(theme);
+  const textColor = template === "dark" ? palette.paper : palette.accent;
   return [
-    { id: "caption", label: "主标题", text: fields.caption, align: "center", visible: Boolean(fields.caption), ...preset.caption },
-    { id: "date", label: "副标题", text: fields.date, align: "center", visible: Boolean(fields.date), ...preset.date },
+    { id: "caption", label: "主标题", text: fields.caption, align: "center", visible: Boolean(fields.caption), ...preset.caption, color: textColor },
+    { id: "date", label: "副标题", text: fields.date, align: "center", visible: Boolean(fields.date), ...preset.date, color: textColor },
   ];
 }
 
 const initialLayers = createTemplateLayers();
 
 function getStickerRatio(selectedFormat, template) {
-  return template === "dark"
-    ? `${selectedFormat.canvas.width} / ${selectedFormat.canvas.height}`
-    : `${selectedFormat.canvas.width} / ${selectedFormat.canvas.height * 1.25}`;
+  return `${selectedFormat.canvas.width} / ${selectedFormat.canvas.height * 1.25}`;
 }
 
 function getPreviewFontSize(layer, compact, template) {
@@ -215,11 +226,12 @@ function Header({ onHome, onStart }) {
   );
 }
 
-function StickerCard({ image = "/assets/kyoto-illustration-v2.png", compact = false, layers = initialLayers, onLayerPointerDown, activeLayer, format = "portrait", template = "white" }) {
+function StickerCard({ image = "/assets/kyoto-illustration-v2.png", compact = false, layers = initialLayers, onLayerPointerDown, activeLayer, format = "portrait", template = "white", theme = "classic" }) {
   const selectedFormat = formatOptions.find((item) => item.id === format) || formatOptions[0];
   const stickerRatio = getStickerRatio(selectedFormat, template);
+  const palette = getTheme(theme);
   return (
-    <div className={`sticker-card format-${format} template-${template} ${compact ? "compact" : ""}`} style={{ aspectRatio: stickerRatio }} data-format={format} data-template={template}>
+    <div className={`sticker-card format-${format} template-${template} theme-${theme} ${compact ? "compact" : ""}`} style={{ aspectRatio: stickerRatio, "--theme-paper": palette.paper, "--theme-accent": palette.accent }} data-format={format} data-template={template} data-theme={theme}>
       <div className="sticker-art-frame"><img src={image} alt="京都旅行插画冰箱贴" /></div>
       <div className="sticker-caption-band" aria-hidden="true" />
       {layers.map((layer) => layer.visible && (
@@ -236,17 +248,27 @@ function StickerCard({ image = "/assets/kyoto-illustration-v2.png", compact = fa
   );
 }
 
-function TemplateSelector({ template, setTemplate, image, format, compact = false }) {
+function TemplateSelector({ template, setTemplate, image, format, theme = "classic", compact = false }) {
   return <div className={`template-grid ${compact ? "compact" : ""}`}>
     {templateOptions.map((option) => {
       const previewFormat = compact ? format : option.previewFormat;
-      const previewLayers = createTemplateLayers(option.id);
+      const previewLayers = createTemplateLayers(option.id, undefined, theme);
       return <button key={option.id} className={`template-option ${template === option.id ? "selected" : ""}`} onClick={() => setTemplate(option.id)}>
-        <div className="template-preview"><StickerCard image={image} layers={previewLayers} format={previewFormat} template={option.id} compact /></div>
+        <div className="template-preview"><StickerCard image={image} layers={previewLayers} format={previewFormat} template={option.id} theme={theme} compact /></div>
         <span><strong>{option.label}</strong><small>{option.desc}</small></span>
         {template === option.id && <PiCheck className="template-check" />}
       </button>;
     })}
+  </div>;
+}
+
+function ThemeSelector({ theme, setTheme, compact = false }) {
+  return <div className={`theme-grid ${compact ? "compact" : ""}`}>
+    {themeOptions.map((option) => <button key={option.id} className={`theme-option ${theme === option.id ? "selected" : ""}`} onClick={() => setTheme(option.id)}>
+      <span className="theme-swatch" style={{ "--swatch-paper": option.paper, "--swatch-accent": option.accent }}><i /><i /></span>
+      <span>{option.label}</span>
+      {theme === option.id && <PiCheck />}
+    </button>)}
   </div>;
 }
 
@@ -371,9 +393,8 @@ function UploadStep({ imageUrl, setImageUrl, crop, setCrop, format, setFormat, o
   );
 }
 
-function DetailsStep({ style, setStyle, fields, setFields, format, template, setTemplate, onBack, onGenerate }) {
+function DetailsStep({ style, setStyle, fields, setFields, format, template, setTemplate, theme, setTheme, onBack, onGenerate }) {
   const selectedFormat = formatOptions.find((item) => item.id === format) || formatOptions[0];
-  const debugPrompt = buildPrompt({ style, format });
   return (
     <section className="create-card details-card">
       <button className="back-button" onClick={onBack}><PiArrowLeft /> 返回上传</button>
@@ -387,14 +408,15 @@ function DetailsStep({ style, setStyle, fields, setFields, format, template, set
         </button>)}
       </div>
       <div className="section-heading compact-heading"><span>04</span><div><h2>选择纪念卡模板</h2><p>模板只改变边框、标题栏和排版，不影响 AI 插画内容。</p></div></div>
-      <TemplateSelector template={template} setTemplate={setTemplate} image={styleOptions.find((item) => item.id === style)?.image} format={format} />
-      <div className="section-heading compact-heading text-heading"><span>05</span><div><h2>写下这趟旅行</h2><p>使用粗窄体主标题与小号副标题，匹配复古旅行纪念卡。</p></div></div>
+      <TemplateSelector template={template} setTemplate={setTemplate} image={styleOptions.find((item) => item.id === style)?.image} format={format} theme={theme} />
+      <div className="section-heading compact-heading text-heading"><span>05</span><div><h2>选择配色主题</h2><p>四套经过设计的配色会同步应用到边框、标题栏和文字。</p></div></div>
+      <ThemeSelector theme={theme} setTheme={setTheme} />
+      <div className="section-heading compact-heading text-heading"><span>06</span><div><h2>写下这趟旅行</h2><p>使用粗窄体主标题与小号副标题，匹配复古旅行纪念卡。</p></div></div>
       <div className="form-grid">
         <label className="full">主标题 <span>选填 · 推荐使用地点英文名</span><div className="input-wrap"><PiPencilSimple /><input value={fields.caption} maxLength={60} onChange={(e) => setFields({ ...fields, caption: e.target.value })} placeholder="例如：KIYOMIZU-DERA, KYOTO" /></div></label>
         <label className="full">副标题 <span>选填 · 一句旅行短句</span><input value={fields.date} maxLength={60} onChange={(e) => setFields({ ...fields, date: e.target.value })} placeholder="例如：AUTUMN SPLENDOR IN OLD JAPAN" /></label>
       </div>
       <button className="primary generate" onClick={onGenerate}><PiSparkle /> 生成冰箱贴</button>
-      <details className="prompt-debug"><summary>调试：查看本次组合提示词 <span>{promptVersion}</span></summary><pre>{debugPrompt}</pre></details>
     </section>
   );
 }
@@ -405,10 +427,10 @@ function Loading({ onCancel, onRetry, prompt, error }) {
   useEffect(() => setProgress(8), [error]);
   if (error) return <section className="loading-screen generation-error"><div className="loading-art"><PiX /></div><span>生成没有完成</span><h1>这次没画出来</h1><p>{error}</p><div className="error-actions"><button className="secondary" onClick={onCancel}>返回调整</button><button className="primary" onClick={onRetry}>重新生成</button></div></section>;
   const text = progress < 35 ? "正在读取照片……" : progress < 72 ? "正在绘制旅行插画……" : "正在制作冰箱贴……";
-  return <section className="loading-screen"><div className="loading-art"><PiSparkle /></div><span>AI 旅行画师正在工作 · Prompt {promptVersion}</span><h1>{text}</h1><p>每一次生成都像重新翻开一段旅程</p><div className="progress-track"><i style={{ width: `${progress}%` }} /></div><b>{progress}%</b><button className="text-button" onClick={onCancel}>取消生成</button>{import.meta.env.DEV && prompt && <details className="loading-prompt"><summary>查看本次提示词</summary><pre>{prompt}</pre></details>}</section>;
+  return <section className="loading-screen"><div className="loading-art"><PiSparkle /></div><span>AI 旅行画师正在工作</span><h1>{text}</h1><p>每一次生成都像重新翻开一段旅程</p><div className="progress-track"><i style={{ width: `${progress}%` }} /></div><b>{progress}%</b><button className="text-button" onClick={onCancel}>取消生成</button></section>;
 }
 
-function Editor({ style, fields, imageUrl, generatedImage, layers, setLayers, format, template, setTemplate, onBack, onStyleChange }) {
+function Editor({ style, fields, imageUrl, generatedImage, layers, setLayers, format, template, setTemplate, theme, setTheme, onBack, onStyleChange }) {
   const [active, setActive] = useState("caption");
   const [history, setHistory] = useState([layers]);
   const [historyIndex, setHistoryIndex] = useState(0);
@@ -419,6 +441,7 @@ function Editor({ style, fields, imageUrl, generatedImage, layers, setLayers, fo
   const selectedFormat = formatOptions.find((item) => item.id === format) || formatOptions[0];
   const stickerRatio = getStickerRatio(selectedFormat, template);
   const current = layers.find((item) => item.id === active);
+  const palette = getTheme(theme);
 
   const commitLayers = (next) => {
     setLayers(next);
@@ -441,21 +464,34 @@ function Editor({ style, fields, imageUrl, generatedImage, layers, setLayers, fo
   };
   const undo = () => { if (historyIndex > 0) { setHistoryIndex(historyIndex - 1); setLayers(history[historyIndex - 1]); } };
   const redo = () => { if (historyIndex < history.length - 1) { setHistoryIndex(historyIndex + 1); setLayers(history[historyIndex + 1]); } };
+  const setTextColor = (color) => commitLayers(layers.map((item) => item.id === active ? { ...item, color } : item));
 
   const changeTemplate = (nextTemplate) => {
     setTemplate(nextTemplate);
     const nextLayers = createTemplateLayers(nextTemplate, {
       caption: layers.find((item) => item.id === "caption")?.text || fields.caption,
       date: layers.find((item) => item.id === "date")?.text || fields.date,
-    });
+    }, theme);
     commitLayers(nextLayers);
     setActive("caption");
+  };
+
+  const changeTheme = (nextTheme) => {
+    setTheme(nextTheme);
+    const nextLayers = createTemplateLayers(template, {
+      caption: layers.find((item) => item.id === "caption")?.text || fields.caption,
+      date: layers.find((item) => item.id === "date")?.text || fields.date,
+    }, nextTheme).map((layer) => {
+      const existing = layers.find((item) => item.id === layer.id);
+      return { ...layer, visible: existing?.visible ?? layer.visible, fontFamily: existing?.fontFamily || layer.fontFamily, size: existing?.size || layer.size };
+    });
+    commitLayers(nextLayers);
   };
 
   const download = async () => {
     await Promise.all(layers.filter((layer) => layer.visible).map((layer) => ensureFontLoaded(fontOptions.find((font) => font.value === layer.fontFamily))));
     await Promise.race([document.fonts?.ready || Promise.resolve(), new Promise((resolve) => window.setTimeout(resolve, 2500))]);
-    const canvas = document.createElement("canvas"); canvas.width = selectedFormat.canvas.width; canvas.height = template === "dark" ? selectedFormat.canvas.height : Math.round(selectedFormat.canvas.height * 1.25);
+    const canvas = document.createElement("canvas"); canvas.width = selectedFormat.canvas.width; canvas.height = Math.round(selectedFormat.canvas.height * 1.25);
     const ctx = canvas.getContext("2d");
     const img = new Image(); img.crossOrigin = "anonymous"; img.src = resultImage;
     await img.decode();
@@ -463,13 +499,13 @@ function Editor({ style, fields, imageUrl, generatedImage, layers, setLayers, fo
     const innerWidth = canvas.width - inset * 2, innerHeight = canvas.height - inset * 2;
     const radius = Math.round(Math.min(canvas.width, canvas.height) * .022);
     ctx.save(); ctx.beginPath(); ctx.roundRect(0, 0, canvas.width, canvas.height, radius); ctx.clip();
-    ctx.fillStyle = template === "dark" ? "#17342f" : "#f8f1df"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    const imageHeight = template === "dark" ? innerHeight : Math.round(innerHeight * (template === "collector" ? .735 : .775));
+    ctx.fillStyle = template === "dark" ? palette.accent : palette.paper; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const imageHeight = Math.round(innerHeight * (template === "dark" ? .8 : template === "collector" ? .735 : .775));
     ctx.drawImage(img, 0, 0, img.width, img.height, inset, inset, innerWidth, imageHeight);
-    const bandY = template === "dark" ? Math.round(canvas.height * .78) : inset + imageHeight;
+    const bandY = inset + imageHeight;
     const bandHeight = canvas.height - inset - bandY;
-    ctx.fillStyle = template === "dark" ? "#17342f" : "#fffdf5"; ctx.fillRect(inset, bandY, innerWidth, bandHeight);
-    ctx.strokeStyle = "#102522"; ctx.lineWidth = Math.max(4, Math.round(canvas.width * .004));
+    ctx.fillStyle = template === "dark" ? palette.accent : palette.paper; ctx.fillRect(inset, bandY, innerWidth, bandHeight);
+    ctx.strokeStyle = palette.accent; ctx.lineWidth = Math.max(4, Math.round(canvas.width * .004));
     if (template === "collector") {
       ctx.strokeRect(inset, inset, innerWidth, innerHeight);
       const ruleGap = Math.round(bandHeight * .16);
@@ -496,19 +532,22 @@ function Editor({ style, fields, imageUrl, generatedImage, layers, setLayers, fo
     <div className="editor-layout">
       <aside className="layer-panel">
         <div><span className="eyebrow"><PiPencilSimple /> 文字编辑</span><h2>写下你的旅行记忆</h2><p>选择文字层后，可直接在画面上拖动位置。</p></div>
-        <div className="editor-template-control"><span>纪念卡模板</span><TemplateSelector template={template} setTemplate={changeTemplate} image={resultImage} format={format} compact /></div>
+        <div className="editor-template-control"><span>纪念卡模板</span><TemplateSelector template={template} setTemplate={changeTemplate} image={resultImage} format={format} theme={theme} compact /></div>
+        <div className="editor-template-control theme-control"><span>配色主题</span><ThemeSelector theme={theme} setTheme={changeTheme} compact /></div>
         <div className="layer-list">{layers.map((layer) => <button key={layer.id} className={active === layer.id ? "active" : ""} onClick={() => setActive(layer.id)}><PiTextAa /><span><strong>{layer.label}</strong><small>{layer.text || "未填写"}</small></span><input type="checkbox" checked={layer.visible} onChange={(e) => { e.stopPropagation(); commitLayers(layers.map((item) => item.id === layer.id ? { ...item, visible: e.target.checked } : item)); }} /></button>)}</div>
         {current && <div className="layer-controls">
           <label>文字内容<input value={current.text} onChange={(e) => updateLayer({ text: e.target.value })} onBlur={() => commitLayers(layers)} /></label>
           <label>字体<select value={current.fontFamily} onChange={(e) => { const font = fontOptions.find((item) => item.value === e.target.value); updateLayer({ fontFamily: e.target.value }, true); ensureFontLoaded(font); }}>{fontGroups.map((group) => <optgroup key={group.label} label={group.label}>{group.fonts.map((font) => <option key={font.label} value={font.value}>{font.label}</option>)}</optgroup>)}</select></label>
           <label>字号 <span>{current.size}px</span><input type="range" min="9" max="48" value={current.size} onChange={(e) => updateLayer({ size: Number(e.target.value) })} onMouseUp={() => commitLayers(layers)} /></label>
-          <div className="color-row"><span>颜色</span>{["#173f3b", "#234a70", "#b55c43", "#fffdf5"].map((color) => <button key={color} aria-label={`颜色 ${color}`} className={current.color === color ? "selected" : ""} style={{ background: color }} onClick={() => commitLayers(layers.map((item) => item.id === active ? { ...item, color } : item))} />)}</div>
+          <div className="color-control">
+            <div className="color-row"><span>颜色</span>{["#173f3b", "#234a70", "#b55c43", "#fffdf5"].map((color) => <button key={color} aria-label={`颜色 ${color}`} className={current.color.toLowerCase() === color ? "selected" : ""} style={{ background: color }} onClick={() => setTextColor(color)} />)}<label className="custom-color" title="自定义取色"><input type="color" aria-label="自定义文字颜色" value={current.color} onChange={(e) => setTextColor(e.target.value)} /><PiPalette /></label></div>
+          </div>
           <div className="align-row"><button onClick={() => updateLayer({ x: 50 }, true)}>水平居中</button><button onClick={() => updateLayer({ y: active === "date" ? 91 : 83 }, true)}>置于文案区</button></div>
         </div>}
       </aside>
       <section className="preview-workspace">
         <div className="source-pill"><img src={imageUrl || "/assets/kyoto-photo.png"} alt="原始照片" /> {selectedFormat.label} {selectedFormat.ratioLabel}</div>
-        <div className={`preview-frame format-${format} template-${template}`} style={{ aspectRatio: stickerRatio, width: selectedFormat.previewWidth }} ref={previewRef}><StickerCard image={resultImage} layers={layers} activeLayer={active} onLayerPointerDown={onLayerPointerDown} format={format} template={template} /></div>
+        <div className={`preview-frame format-${format} template-${template}`} style={{ aspectRatio: stickerRatio, width: selectedFormat.previewWidth }} ref={previewRef}><StickerCard image={resultImage} layers={layers} activeLayer={active} onLayerPointerDown={onLayerPointerDown} format={format} template={template} theme={theme} /></div>
         <p><PiShieldCheck /> 虚线范围内为安全打印区域</p>
       </section>
     </div>
@@ -524,6 +563,7 @@ export function App() {
   const [format, setFormat] = useState("portrait");
   const [style, setStyle] = useState("illustration");
   const [template, setTemplate] = useState("white");
+  const [theme, setTheme] = useState("classic");
   const [fields, setFields] = useState({ caption: "KIYOMIZU-DERA, KYOTO", date: "AUTUMN SPLENDOR IN OLD JAPAN" });
   const [layers, setLayers] = useState(initialLayers);
   const [generationPrompt, setGenerationPrompt] = useState("");
@@ -532,7 +572,7 @@ export function App() {
   const generationController = useRef(null);
 
   useEffect(() => () => generationController.current?.abort(), []);
-  const syncLayers = () => setLayers(createTemplateLayers(template, fields));
+  const syncLayers = () => setLayers(createTemplateLayers(template, fields, theme));
   const start = () => { setScreen("create"); setStep(1); window.scrollTo({ top: 0, behavior: "smooth" }); };
   const generate = async () => {
     const prompt = buildPrompt({ style, format });
@@ -570,9 +610,9 @@ export function App() {
     {screen === "create" && <main className="create-page">
       <div className="create-progress"><span className={step >= 1 ? "active" : ""}><b>1</b> 照片与版型</span><i /><span className={step >= 2 ? "active" : ""}><b>2</b> 文案与风格</span><i /><span className={step >= 3 ? "active" : ""}><b>3</b> 生成作品</span></div>
       {step === 1 && <UploadStep imageUrl={imageUrl} setImageUrl={setImageUrl} crop={crop} setCrop={setCrop} format={format} setFormat={setFormat} onNext={() => setStep(2)} />}
-      {step === 2 && <DetailsStep style={style} setStyle={setStyle} fields={fields} setFields={setFields} format={format} template={template} setTemplate={setTemplate} onBack={() => setStep(1)} onGenerate={generate} />}
+      {step === 2 && <DetailsStep style={style} setStyle={setStyle} fields={fields} setFields={setFields} format={format} template={template} setTemplate={setTemplate} theme={theme} setTheme={setTheme} onBack={() => setStep(1)} onGenerate={generate} />}
       {step === 3 && <Loading onCancel={cancel} onRetry={generate} prompt={generationPrompt} error={generationError} />}
     </main>}
-    {screen === "editor" && <Editor style={style} fields={fields} imageUrl={imageUrl} generatedImage={generatedImage} layers={layers} setLayers={setLayers} format={format} template={template} setTemplate={setTemplate} onBack={() => { setScreen("create"); setStep(2); }} onStyleChange={() => { setScreen("create"); setStep(2); }} />}
+    {screen === "editor" && <Editor style={style} fields={fields} imageUrl={imageUrl} generatedImage={generatedImage} layers={layers} setLayers={setLayers} format={format} template={template} setTemplate={setTemplate} theme={theme} setTheme={setTheme} onBack={() => { setScreen("create"); setStep(2); }} onStyleChange={() => { setScreen("create"); setStep(2); }} />}
   </div>;
 }

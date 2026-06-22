@@ -80,7 +80,7 @@ function arkSeedream(apiKey) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(120_000),
+        signal: AbortSignal.timeout(180_000),
       });
       const result = await upstream.json().catch(() => null);
 
@@ -94,7 +94,7 @@ function arkSeedream(apiKey) {
           404: `模型 ${MODEL_ID} 不存在或已下线`,
           429: "请求过于频繁，请稍后再试",
           500: "火山引擎服务异常，请重试",
-          504: "图片生成超时，请重试",
+          504: "图片生成超时（180s），Seedream 繁忙时段会慢，请稍后重试",
           InsufficientBalance: "火山引擎账户余额不足，请前往方舟控制台充值",
         };
         return sendJson(res, upstream.ok ? 400 : upstream.status, {
@@ -108,7 +108,7 @@ function arkSeedream(apiKey) {
     } catch (error) {
       const status = error.status || (error.name === "TimeoutError" ? 504 : 500);
       return sendJson(res, status, {
-        error: error.name === "TimeoutError" ? "图片生成超时，请重试" : error.message || "图片生成失败",
+        error: error.name === "TimeoutError" ? "图片生成超时（180s），Seedream 繁忙时段会慢，请稍后重试" : error.message || "图片生成失败",
       });
     }
   };
