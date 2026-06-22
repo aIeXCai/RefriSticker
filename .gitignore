@@ -32,3 +32,8 @@ prototype-*.png
 qa-*.png
 qa-*.html
 reference-design.png
+
+# User scratch folders (chat screenshots, ad-hoc uploads, etc.)
+reference_images/实验图/
+reference_images/test/
+reference_images/tmp/

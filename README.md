@@ -6,7 +6,7 @@
 
 [![React](https://img.shields.io/badge/React-19.2-61dafb?style=flat-square&logo=react&logoColor=white)](https://react.dev)
 [![Vite](https://img.shields.io/badge/Vite-6.4-646cff?style=flat-square&logo=vite&logoColor=white)](https://vitejs.dev)
-[![MiniMax](https://img.shields.io/badge/MiniMax-image--01-ff6b35?style=flat-square)](https://api.minimaxi.com)
+[![Seedream](https://img.shields.io/badge/火山引擎-Seedream%205.0%20lite-3370ff?style=flat-square)](https://www.volcengine.com/product/ark)
 [![License](https://img.shields.io/badge/license-MIT-22c55e?style=flat-square)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/aIeXCai/RefriSticker?style=flat-square&logo=github)](https://github.com/aIeXCai/RefriSticker/stargazers)
 [![Last commit](https://img.shields.io/github/last-commit/aIeXCai/RefriSticker?style=flat-square)](https://github.com/aIeXCai/RefriSticker/commits/main)
@@ -25,8 +25,9 @@
 
 不是给照片加滤镜,而是重新画一张。文字、版式、边框、日期都由前端排版,确保永远不出现 AI 乱码。
 
-> 目标用户:在京都街头拍了 200 张照片、走时买了 7 个冰箱贴、回来后还想做点什么的你。
+![视觉参考](reference_images/style_reference.png)
 
+> 目标用户:在京都街头拍了 200 张照片、走时买了 7 个冰箱贴、回来后还想做点什么的你。
 ---
 
 ## ✨ 核心特性
@@ -36,7 +37,7 @@
 | 🎨 **三种独立风格** | 清新复古海报插画 / 国风工笔 / 漫画赛璐璐,视觉差异显著,不是同一渲染的微调 |
 | 📐 **三种画幅比例** | 4:5 竖版 · 1:1 方形 · 4:3 横版,适配不同分享场景 |
 | ✏️ **Canvas 文字编辑器** | 地点、英文地点、日期、旅行短句四层独立编辑,支持拖拽、调字号、改色、对齐 |
-| 🔒 **服务端代理** | MiniMax API Key 只存在于服务端环境变量,浏览器永远不接触密钥 |
+| 🔒 **服务端代理** | 火山引擎 ARK_API_KEY 只存在于服务端环境变量,浏览器永远不接触密钥 |
 | 📝 **版本化提示词** | Prompt 以 Markdown 形式存放在 `app/prompts/`,Vite 热更新,按 `base + style + composition + negative` 拼装 |
 | 🪄 **智能失败处理** | 余额不足 / 内容安全拒绝 / 超时 / Key 失效,均有可读的中文提示和重试入口 |
 | 📱 **移动端优先** | 上传、裁剪、编辑、下载在手机端同样顺畅 |
@@ -66,66 +67,6 @@
 | 页面背景 | 云朵白 | `#F8FBF7` |
 | 文本主色 | 深青灰 | `#243B3A` |
 
----
-
-## 🏗️ 架构
-
-### 核心原则
-
-> **模型只画无文字的底图。所有文字、版式、边框、水印由前端叠加。**
-
-这条原则贯穿整个项目:它保证永远不会出现 AI 生成的乱码,保证所有作品版式一致,保证文字始终可编辑。
-
-### 端到端流程
-
-```mermaid
-flowchart LR
-    A[用户上传照片] --> B[前端裁剪/旋转]
-    B --> C[选择比例 + 风格 + 地点]
-    C --> D[组装 Markdown Prompt]
-    D --> E[POST /api/generate-image]
-    E --> F[Vite 中间件代理]
-    F --> G[MiniMax image-01]
-    G --> F
-    F --> H[Base64 底图]
-    H --> I[Canvas 叠加文字层]
-    I --> J[用户编辑: 拖拽/调字号/换色]
-    J --> K[导出 PNG + RefriSticker 水印]
-```
-
-### 模块边界
-
-```
-┌────────────────────────────────────────────────────────┐
-│  浏览器 (React 19 + Vite 6)                            │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌─────────┐ │
-│  │ 上传裁剪 │→ │ 风格选择 │→ │ 文字编辑 │→ │ Canvas │ │
-│  └──────────┘  └──────────┘  └──────────┘  │ 导出   │ │
-│                                            └─────────┘ │
-│  • 状态全在内存,无后端持久化                            │
-│  • 调用 /api/generate-image,不接触 API Key            │
-└────────────────────────────────────────────────────────┘
-                          │ HTTP POST (含 prompt + base64 照片)
-                          ▼
-┌────────────────────────────────────────────────────────┐
-│  Vite Middleware (开发/预览同进程)                      │
-│  • 校验 prompt 长度(≤ 1500)                            │
-│  • 校验尺寸白名单(1024×1280/1024×1024/1152×864)       │
-│  • 校验参考图 MIME                                     │
-│  • 读取 MINIMAX_API_KEY                                 │
-│  • 转发到 MiniMax,转换错误码为中文提示                  │
-└────────────────────────────────────────────────────────┘
-                          │ HTTPS Bearer
-                          ▼
-┌────────────────────────────────────────────────────────┐
-│  MiniMax image_generation API                          │
-│  • model: image-01                                     │
-│  • subject_reference: [{ type: "character", ... }]    │
-│  • response_format: base64                             │
-│  • prompt_optimizer: false(走我们自己的 prompt)        │
-│  • aigc_watermark: false(水印我们自己加)              │
-└────────────────────────────────────────────────────────┘
-```
 
 ---
 
@@ -134,7 +75,7 @@ flowchart LR
 ### 前置条件
 
 - **Node.js** ≥ 20
-- 一个 **MiniMax** 开放平台账号(注册 → 创建 API Key → 充值)
+- 一个 **火山引擎** 账号(注册 → 开通方舟 → 创建 API Key → 充值)
 
 ### 1. 克隆并安装
 
@@ -150,11 +91,12 @@ npm install
 cp .env.example .env.local
 ```
 
-编辑 `app/.env.local`,把 `MINIMAX_API_KEY` 替换成你自己的:
+编辑 `app/.env.local`,把 `ARK_API_KEY` 替换成你自己的:
 
 ```env
-# MiniMax 开放平台 → API Keys → 创建
-MINIMAX_API_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+# 火山引擎方舟 → API Key 管理 → 创建
+# 详见 https://console.volcengine.com/ark/region:ark+cn-beijing/apikey
+ARK_API_KEY=your_ark_api_key_here
 ```
 
 ### 3. 启动开发服务
@@ -182,26 +124,28 @@ npm run preview    # 本地预览生产构建
 
 | 变量 | 必填 | 说明 |
 |---|---|---|
-| `MINIMAX_API_KEY` | ✅ | MiniMax 开放平台密钥。缺失时 `/api/generate-image` 返回 503 |
+| `ARK_API_KEY` | ✅ | 火山引擎方舟密钥。缺失时 `/api/generate-image` 返回 503 |
 
 ### 三种生成尺寸
 
 | 比例 | 用途 | 像素 |
 |---|---|---|
-| 4:5 竖版 | 移动端分享、冰箱贴实物 | 1024 × 1280 |
-| 1:1 方形 | 头像贴纸、社交方图 | 1024 × 1024 |
-| 4:3 横版 | 横版横幅、桌面壁纸 | 1152 × 864 |
+| 4:5 竖版 | 移动端分享、冰箱贴实物 | 1728 × 2304 |
+| 1:1 方形 | 头像贴纸、社交方图 | 2048 × 2048 |
+| 4:3 横版 | 横版横幅、桌面壁纸 | 2304 × 1728 |
 
-### MiniMax 错误码 → 中文提示
+### 火山引擎 Ark 错误码 → 中文提示
 
-| 状态码 | 含义 | 提示 |
+| HTTP / 业务码 | 含义 | 提示 |
 |---|---|---|
-| 1002 | 请求过频 | 请稍后再试 |
-| 1004 / 2049 | Key 无效 | 检查 `MINIMAX_API_KEY` 是否正确 |
-| 1008 | 余额不足 | 前往 MiniMax 充值 |
-| 1026 | 内容安全拒绝 | 检查照片和输入文本 |
-| 2013 | 参数错误 | 检查 prompt 与尺寸 |
-| 超时 | 120s 未返回 | 重试 |
+| 400 | 请求参数错误 | 检查 prompt / 尺寸 / 图片格式 |
+| 401 | API Key 鉴权失败 | 检查 `ARK_API_KEY` 是否正确 |
+| 403 | 无权限 | 确认账号已开通 Seedream 5.0 lite |
+| 404 | 模型不存在 | 确认模型 ID 仍有效 |
+| 429 | 请求过频 | 请稍后再试 |
+| 500 | 服务异常 | 请重试 |
+| 504 | 超时（120s） | 请重试 |
+| `InsufficientBalance` | 余额不足 | 前往方舟控制台充值 |
 
 ---
 
@@ -272,7 +216,7 @@ RefriSticker/
 │   ├── vite.config.mjs           # ⭐ 内含 /api/generate-image 中间件
 │   ├── package.json
 │   ├── AGENTS.md                 # 设计与实现约束
-│   ├── MINIMAX.md                # MiniMax 接入文档
+│   ├── ARK.md                    # 火山引擎 Ark 接入文档
 │   └── .env.example
 ├── docs/
 │   ├── RefriSticker-PRD-v0.2.md  # 产品需求文档
@@ -294,7 +238,7 @@ RefriSticker/
 | 构建 | Vite | 6.4 |
 | 路由 | — (单页流程,无需路由) | — |
 | 图标 | react-icons | ^5.6 |
-| 图像生成 | MiniMax image-01 | image-01 |
+| 图像生成 | 火山引擎 Ark Doubao Seedream 5.0 lite | doubao-seedream-5-0-260128 |
 | 图像合成 | Canvas 2D API | 浏览器原生 |
 | 服务端代理 | Vite Middleware (开发) / 同形态部署到 Serverless | — |
 | 状态管理 | React `useState` / `useReducer` | 内存态 |
@@ -360,45 +304,6 @@ RefriSticker/
 - [ ] 景区 / 民宿 / 旅行社品牌定制页
 - [ ] 供应链与订单履约系统
 
----
-
-## 🐛 故障排除
-
-### 服务启动后访问首页 502 / 503
-
-```bash
-# 检查 .env.local 是否存在且未注释
-cat app/.env.local
-# 应该看到一行: MINIMAX_API_KEY=eyJ...
-# 不存在则: cp app/.env.example app/.env.local 后填入
-```
-
-### 提示 "MINIMAX_API_KEY 鉴权失败" (1004 / 2049)
-
-- 确认 Key 在 [MiniMax 控制台](https://api.minimaxi.com)处于启用状态
-- 确认账户已开通 image-01 模型权限
-- 改完 `.env.local` 一定要**重启** `npm run dev`
-
-### 提示 "余额不足" (1008)
-
-- 前往 [MiniMax 计费页](https://api.minimaxi.com)充值
-
-### 风景照生成结构保持不理想
-
-- MiniMax 当前正式支持的主体参考类型是 `character`
-- 单人正面照片效果最稳定
-- 风景照可以提交,但场景结构保持能力不在官方承诺范围
-
-### 修改了 prompt 模板但没生效
-
-- `app/prompts/refri-sticker-v1.md` 在 Vite 启动时按 `?raw` 加载
-- 修改后保存即可,Vite HMR 会自动重载
-- 如果还没生效,确认章节标题是 `## section_name` 格式(且用 `##` 而不是 `###`)
-
-### 浏览器报 "Mixed Content" 或 "CORS"
-
-- 一切走 `http://127.0.0.1:5173`,不要改成 `0.0.0.0` 或公网 IP
-- 生产部署时确保 `/api/generate-image` 与前端同源
 
 ---
 
@@ -406,7 +311,7 @@ cat app/.env.local
 
 欢迎 PR、Issue、风格建议、提示词优化。提交前请:
 
-1. 读 `app/AGENTS.md` 和 `app/MINIMAX.md` 了解设计与接入约束
+1. 读 `app/AGENTS.md` 和 `app/ARK.md` 了解设计与接入约束
 2. 修改 prompt 时同步更新 `promptVersion` 字段(见 `app/src/prompt-builder.js:3`)
 3. 跑过三种风格各 3 张图再提 PR,附生成结果对比
 
@@ -420,7 +325,7 @@ cat app/.env.local
 
 ## 🙏 致谢
 
-- [MiniMax](https://api.minimaxi.com) 提供 `image-01` 图生图能力
+- [火山引擎方舟](https://www.volcengine.com/product/ark) 提供 Doubao Seedream 5.0 lite 多图融合图生图能力
 - [React](https://react.dev) + [Vite](https://vitejs.dev) 提供现代前端体验
 - 所有提供参考图、测试照和反馈的早期用户
 

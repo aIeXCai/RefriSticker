@@ -1,6 +1,6 @@
-import promptMarkdown from "../prompts/refri-sticker-v1.md?raw";
+import promptMarkdown from "../prompts/refri-sticker-v2.md?raw";
 
-export const promptVersion = "v1";
+export const promptVersion = "v2";
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

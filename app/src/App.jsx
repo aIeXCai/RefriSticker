@@ -29,9 +29,9 @@ const styleOptions = [
 ];
 
 const formatOptions = [
-  { id: "portrait", label: "竖版", ratioLabel: "4:5", cssRatio: "4 / 5", cropWidth: "320px", uploadWidth: "430px", previewWidth: "min(460px, 88vw, 48vh)", generation: { width: 1024, height: 1280 }, canvas: { width: 1200, height: 1500 }, hint: "人物、建筑、街景" },
-  { id: "square", label: "方形", ratioLabel: "1:1", cssRatio: "1 / 1", cropWidth: "390px", uploadWidth: "520px", previewWidth: "min(560px, 88vw, 58vh)", generation: { width: 1024, height: 1024 }, canvas: { width: 1400, height: 1400 }, hint: "合照、食物、近景" },
-  { id: "landscape", label: "横版", ratioLabel: "4:3", cssRatio: "4 / 3", cropWidth: "540px", uploadWidth: "760px", previewWidth: "min(720px, 88vw, 65vh)", generation: { width: 1152, height: 864 }, canvas: { width: 1600, height: 1200 }, hint: "风景、全景、多人合照" },
+  { id: "portrait", label: "竖版", ratioLabel: "4:5", cssRatio: "4 / 5", cropWidth: "320px", uploadWidth: "430px", previewWidth: "min(460px, 88vw, 48vh)", generation: { size: "1728x2304", width: 1728, height: 2304 }, canvas: { width: 1200, height: 1500 }, hint: "人物、建筑、街景" },
+  { id: "square", label: "方形", ratioLabel: "1:1", cssRatio: "1 / 1", cropWidth: "390px", uploadWidth: "520px", previewWidth: "min(560px, 88vw, 58vh)", generation: { size: "2048x2048", width: 2048, height: 2048 }, canvas: { width: 1400, height: 1400 }, hint: "合照、食物、近景" },
+  { id: "landscape", label: "横版", ratioLabel: "4:3", cssRatio: "4 / 3", cropWidth: "540px", uploadWidth: "760px", previewWidth: "min(720px, 88vw, 65vh)", generation: { size: "2304x1728", width: 2304, height: 1728 }, canvas: { width: 1600, height: 1200 }, hint: "风景、全景、多人合照" },
 ];
 
 const templateOptions = [
@@ -180,6 +180,19 @@ function getStickerRatio(selectedFormat, template) {
     : `${selectedFormat.canvas.width} / ${selectedFormat.canvas.height * 1.25}`;
 }
 
+function getPreviewFontSize(layer, compact, template) {
+  if (!compact) return `${layer.size}px`;
+  if (template === "collector") return layer.id === "caption" ? "7px" : "4px";
+  return layer.id === "caption" ? `${Math.max(layer.size * .52, 15)}px` : `${Math.max(layer.size * .7, 8)}px`;
+}
+
+function getPreviewTop(layer, compact, template) {
+  if (compact && template === "collector") {
+    return layer.id === "caption" ? 82.7 : 89.5;
+  }
+  return layer.y;
+}
+
 function Logo({ onClick }) {
   return (
     <button className="logo" onClick={onClick} aria-label="回到首页">
@@ -213,7 +226,7 @@ function StickerCard({ image = "/assets/kyoto-illustration-v2.png", compact = fa
         <div
           key={layer.id}
           className={`sticker-layer layer-${layer.id} ${activeLayer === layer.id ? "active" : ""}`}
-          style={{ left: `${layer.x}%`, top: `${layer.y}%`, fontSize: compact ? `${layer.id === "caption" ? Math.max(layer.size * .52, 15) : Math.max(layer.size * .7, 8)}px` : `${layer.size}px`, color: layer.color, textAlign: layer.align, fontWeight: layer.weight, fontFamily: layer.fontFamily }}
+          style={{ left: `${layer.x}%`, top: `${getPreviewTop(layer, compact, template)}%`, fontSize: getPreviewFontSize(layer, compact, template), color: layer.color, textAlign: layer.align, fontWeight: layer.weight, fontFamily: layer.fontFamily }}
           onPointerDown={(event) => onLayerPointerDown?.(event, layer.id)}
         >
           {layer.text}
@@ -309,8 +322,8 @@ function UploadStep({ imageUrl, setImageUrl, crop, setCrop, format, setFormat, o
 
   const readFile = (file) => {
     if (!file) return;
-    if (!/image\/(jpeg|png)/.test(file.type)) { setWarning("MiniMax 图生图目前支持 JPG、JPEG 或 PNG"); return; }
-    if (file.size >= 10 * 1024 * 1024) { setWarning("MiniMax 参考图需小于 10MB，请压缩后重试"); return; }
+    if (!/image\/(jpeg|png|webp|heic|heif)/.test(file.type)) { setWarning("请上传 JPG、JPEG、PNG、WEBP 或 HEIC 格式的照片"); return; }
+    if (file.size >= 15 * 1024 * 1024) { setWarning("照片需小于 15MB，请压缩后重试"); return; }
     setWarning("");
     const reader = new FileReader();
     reader.onload = () => { setImageUrl(reader.result); setShowCrop(true); };
@@ -536,7 +549,7 @@ export function App() {
       const response = await fetch("/api/generate-image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, image, ...selectedFormat.generation }),
+        body: JSON.stringify({ prompt, image, style, ...selectedFormat.generation }),
         signal: controller.signal,
       });
       const result = await response.json().catch(() => ({}));
