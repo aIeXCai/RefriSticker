@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 
 const MODEL_ID = "doubao-seedream-5-0-260128";
@@ -10,6 +10,11 @@ const MAX_OUTPUT_IMAGE_BYTES = 3 * 1024 * 1024;
 const allowedSizes = new Set(["1728x2304", "2048x2048", "2304x1728"]);
 const allowedStyles = new Set(["illustration", "chinese", "comic"]);
 const imageMimePrefix = /^data:image\/(jpeg|png|webp|bmp|tiff|gif|heic|heif);base64,/i;
+const styleReferencePaths = {
+  illustration: fileURLToPath(new URL("../public/style-refs/illustration.png", import.meta.url)),
+  chinese: fileURLToPath(new URL("../public/style-refs/chinese.png", import.meta.url)),
+  comic: fileURLToPath(new URL("../public/style-refs/comic.png", import.meta.url)),
+};
 
 function imageBytes(dataUrl) {
   const comma = dataUrl.indexOf(",");
@@ -18,8 +23,7 @@ function imageBytes(dataUrl) {
   return Math.floor(base64Length * 0.75);
 }
 function loadStyleReference(style) {
-  const path = resolve(process.cwd(), "public", "style-refs", `${style}.png`);
-  return `data:image/png;base64,${readFileSync(path).toString("base64")}`;
+  return `data:image/png;base64,${readFileSync(styleReferencePaths[style]).toString("base64")}`;
 }
 
 async function fitOutputForVercel(base64) {

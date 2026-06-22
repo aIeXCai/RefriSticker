@@ -5,7 +5,11 @@
   "functions": {
     "api/generate-image.js": {
       "maxDuration": 300,
-      "includeFiles": "public/style-refs/**"
+      "includeFiles": [
+        "public/style-refs/illustration.png",
+        "public/style-refs/chinese.png",
+        "public/style-refs/comic.png"
+      ]
     }
   }
 }
