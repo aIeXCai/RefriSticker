@@ -4,7 +4,8 @@
   "regions": ["hkg1"],
   "functions": {
     "api/generate-image.js": {
-      "maxDuration": 300
+      "maxDuration": 300,
+      "includeFiles": "public/style-refs/**"
     }
   }
 }

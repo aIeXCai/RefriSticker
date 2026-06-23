@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 import sharp from "sharp";
 
@@ -18,8 +19,26 @@ function imageBytes(dataUrl) {
   return Math.floor(base64Length * 0.75);
 }
 function loadStyleReference(style) {
-  const path = resolve(process.cwd(), "public", "style-refs", `${style}.png`);
-  return `data:image/png;base64,${readFileSync(path).toString("base64")}`;
+  const filename = `${style}.png`;
+  const candidates = [
+    resolve(process.cwd(), "public", "style-refs", filename),
+    resolve(process.cwd(), "app", "public", "style-refs", filename),
+    fileURLToPath(new URL(`../public/style-refs/${filename}`, import.meta.url)),
+  ];
+
+  let lastError;
+  for (const path of candidates) {
+    try {
+      return `data:image/png;base64,${readFileSync(path).toString("base64")}`;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw Object.assign(new Error(`风格参考图 ${filename} 未打包到服务端函数，请检查 Vercel includeFiles 配置`), {
+    cause: lastError,
+    status: 500,
+  });
 }
 
 async function fitOutputForVercel(base64) {

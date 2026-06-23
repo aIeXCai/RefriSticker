@@ -8,9 +8,7 @@ export default async function handler(request, response) {
 
   try {
     const body = typeof request.body === "string" ? JSON.parse(request.body) : request.body;
-    const deploymentHost = process.env.VERCEL_URL || request.headers.host;
-    const styleReference = `https://${deploymentHost}/style-refs/${body?.style}.png`;
-    const result = await generateImage(body, process.env.ARK_API_KEY, { styleReference });
+    const result = await generateImage(body, process.env.ARK_API_KEY);
     return response.status(result.status).json(result.body);
   } catch (error) {
     return response.status(400).json({ error: error.message || "请求内容格式错误" });
