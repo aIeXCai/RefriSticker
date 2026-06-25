@@ -33,6 +33,14 @@ qa-*.png
 qa-*.html
 reference-design.png
 
+# User screenshots (browser dev tools, sandbox captures, etc.)
+# Don't match legitimate design assets like reference_images/*.png
+*Screen*.png
+*screenshot*.png
+*Capture*.png
+*截屏*.png
+*屏幕*.png
+
 # User scratch folders (chat screenshots, ad-hoc uploads, finished outputs, etc.)
 reference_images/实验图/
 reference_images/成品图/
