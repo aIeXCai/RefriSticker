@@ -38,7 +38,13 @@ const formatOptions = [
   { id: "landscape", label: "横版", ratioLabel: "4:3", cssRatio: "4 / 3", cropWidth: "540px", uploadWidth: "760px", previewWidth: "min(720px, 88vw, 65vh)", generation: { size: "2304x1728", width: 2304, height: 1728 }, canvas: { width: 1600, height: 1200 }, hint: "风景、全景、多人合照" },
 ];
 
-const imageApiUrl = "/api/generate-image";
+const imageApiUrl = (() => {
+  if (typeof window === "undefined") return "/api/generate-image";
+  if (window.location.hostname.endsWith(".er.aliyun-esa.net")) {
+    return "https://refri-sticker.vercel.app/api/generate-image";
+  }
+  return "/api/generate-image";
+})();
 
 const templateOptions = [
   { id: "white", label: "浅色说明栏", desc: "浅色标题栏，经典旅行纪念卡", previewFormat: "landscape" },
