@@ -16,8 +16,12 @@ import {
   PiSparkle,
   PiTextAa,
   PiX,
+  PiEnvelopeSimple,
+  PiHeart,
+  PiStamp,
 } from "react-icons/pi";
 import { buildPrompt } from "./prompt-builder";
+import { QRCodeSVG } from "qrcode.react";
 import illustrationPreview from "./assets/style-preview-illustration-v3.png";
 import chinesePreview from "./assets/style-preview-chinese-v3.png";
 import comicPreview from "./assets/style-preview-comic-v3.png";
@@ -455,8 +459,41 @@ function DetailsStep({ style, setStyle, fields, setFields, format, template, set
 }
 
 function Loading({ onCancel, onRetry, prompt, error }) {
+  const messages = [
+    "正在读取照片里的光影与结构…",
+    "正在铺设旅行插画的色块与墨线…",
+    "正在为它挑选最合适的画框与版式…",
+    "正在把你的旅程装进一张可以触摸的纪念…",
+  ];
+  const [elapsed, setElapsed] = useState(0);
+  const [textIndex, setTextIndex] = useState(0);
+  useEffect(() => {
+    if (error) return;
+    const tick = setInterval(() => setElapsed((s) => s + 1), 1000);
+    return () => clearInterval(tick);
+  }, [error]);
+  useEffect(() => {
+    if (error) return;
+    const tick = setInterval(() => setTextIndex((i) => (i + 1) % messages.length), 4500);
+    return () => clearInterval(tick);
+  }, [error, messages.length]);
   if (error) return <section className="loading-screen generation-error"><div className="loading-art"><PiX /></div><span>生成没有完成</span><h1>这次没画出来</h1><p>{error}</p><div className="error-actions"><button className="secondary" onClick={onCancel}>返回调整</button><button className="primary" onClick={onRetry}>重新生成</button></div></section>;
-  return <section className="loading-screen"><div className="loading-art"><PiSparkle /></div><span>AI 旅行画师正在工作</span><h1>正在绘制你的冰箱贴</h1><p>每一次生成都像重新翻开一段旅程</p><button className="text-button" onClick={onCancel}>取消生成</button></section>;
+  return (
+    <section className="loading-screen">
+      <div className="loading-stage">
+        <span className="float-icon float-icon--envelope"><PiEnvelopeSimple /></span>
+        <span className="float-icon float-icon--heart"><PiHeart /></span>
+        <span className="float-icon float-icon--stamp"><PiStamp /></span>
+        <div className="loading-art"><PiSparkle /></div>
+      </div>
+      <span>AI 旅行画师正在工作</span>
+      <h1 key={textIndex} className="loading-text">{messages[textIndex]}</h1>
+      <p>每一次生成都像重新翻开一段旅程</p>
+      <div className="message-dots">{messages.map((_, i) => <i key={i} className={i === textIndex ? "active" : ""} />)}</div>
+      <div className="loading-time">通常需要 20-30 秒左右 · 已等待 <b>{elapsed}</b> 秒</div>
+      <button className="text-button" onClick={onCancel}>取消生成</button>
+    </section>
+  );
 }
 
 function Editor({ style, fields, imageUrl, generatedImage, layers, setLayers, format, template, setTemplate, theme, setTheme, onBack, onStyleChange }) {
@@ -598,9 +635,16 @@ export function App() {
   const [generationPrompt, setGenerationPrompt] = useState("");
   const [generatedImage, setGeneratedImage] = useState("");
   const [generationError, setGenerationError] = useState("");
+  const [supportOpen, setSupportOpen] = useState(false);
   const generationController = useRef(null);
 
   useEffect(() => () => generationController.current?.abort(), []);
+  useEffect(() => {
+    if (!supportOpen) return;
+    const onKey = (e) => { if (e.key === "Escape") setSupportOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [supportOpen]);
   const syncLayers = () => setLayers(createTemplateLayers(template, fields, theme));
   const start = () => { setScreen("create"); setStep(1); window.scrollTo({ top: 0, behavior: "smooth" }); };
   const generate = async () => {
@@ -643,5 +687,31 @@ export function App() {
       {step === 3 && <Loading onCancel={cancel} onRetry={generate} prompt={generationPrompt} error={generationError} />}
     </main>}
     {screen === "editor" && <Editor style={style} fields={fields} imageUrl={imageUrl} generatedImage={generatedImage} layers={layers} setLayers={setLayers} format={format} template={template} setTemplate={setTemplate} theme={theme} setTheme={setTheme} onBack={() => { setScreen("create"); setStep(2); }} onStyleChange={() => { setScreen("create"); setStep(2); }} />}
+    {/* 爱发电激励弹窗入口 — 全局浮动 */}
+    <button type="button" className="bmc-float" onClick={() => setSupportOpen(true)}><PiHeart /><span>激励作者</span></button>
+    {supportOpen && <div className="modal-backdrop support-modal" onClick={() => setSupportOpen(false)}>
+      <div className="support-dialog" onClick={(e) => e.stopPropagation()}>
+        <button type="button" className="support-close" onClick={() => setSupportOpen(false)} aria-label="关闭"><PiX /></button>
+        <h2>支持 RefriSticker</h2>
+        <div className="support-content">
+          <div className="support-text">
+            <p>我是一个独立开发者 + 旅行爱好者。</p>
+            <p>每次旅行回来，都觉得冰箱里太空了。所以做了 RefriSticker —— 把你手机里的旅行照片，做成可以贴回冰箱的纪念。</p>
+            <p>目前有 3 种风格、3 种版型可选。</p>
+            <p> </p>
+            <br></br>
+            <p>你的赞助会用来：</p>
+            <p>- 支付图像生成 API 成本</p>
+            <p>- 持续打磨功能</p>
+            <p>- 攒够钱了，做一批实体冰箱贴送给大家</p>
+          </div>
+          <div className="support-qr">
+            <QRCodeSVG value="https://ifdian.net/order/create?plan_id=84b1de66705d11f19c6852540025c377&product_type=0&remark=&affiliate_code=" size={172} level="M" />
+            <small>微信/支付宝扫码直接赞助</small>
+          </div>
+        </div>
+        <a className="primary support-link" href="https://ifdian.net/order/create?plan_id=84b1de66705d11f19c6852540025c377&product_type=0&remark=&affiliate_code=" target="_blank" rel="noopener noreferrer">立即支持 <PiArrowRight /></a>
+      </div>
+    </div>}
   </div>;
 }
