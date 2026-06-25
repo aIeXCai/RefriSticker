@@ -150,8 +150,8 @@ function canvasToJpegBlob(canvas, quality) {
 }
 
 async function encodeReferenceForUpload(canvas) {
-  const maxBytes = 2 * 1024 * 1024;
-  for (const quality of [.72, .64, .56]) {
+  const maxBytes = 200 * 1024;
+  for (const quality of [.4, .3, .25]) {
     const blob = await canvasToJpegBlob(canvas, quality);
     if (blob.size <= maxBytes) return blobToDataUrl(blob);
   }
