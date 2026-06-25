@@ -12,6 +12,28 @@ function json(body, status = 200, headers = {}) {
   });
 }
 
+function streamJson(work, status = 200) {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      controller.enqueue(encoder.encode("\n"));
+      try {
+        const body = await work();
+        controller.enqueue(encoder.encode(JSON.stringify(body)));
+      } catch (error) {
+        controller.enqueue(encoder.encode(JSON.stringify({ error: error.message || "图片生成失败" })));
+      } finally {
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    status,
+    headers: { "content-type": "application/json; charset=utf-8" },
+  });
+}
+
 async function readJson(request) {
   const contentLength = Number(request.headers.get("content-length") || 0);
   if (contentLength > MAX_BODY_BYTES) {
@@ -30,16 +52,16 @@ async function handleGenerateImage(request) {
     return json({ error: "仅支持 POST 请求" }, 405, { allow: "POST" });
   }
 
-  try {
+  return streamJson(async () => {
     const result = await generateImage(await readJson(request), {
       provider: process.env.IMAGE_PROVIDER,
       arkApiKey: process.env.ARK_API_KEY,
       agnesApiKey: process.env.AGNES_API_KEY,
+      skipCompression: true,
     });
-    return json(result.body, result.status);
-  } catch (error) {
-    return json({ error: error.message || "请求内容格式错误" }, error.status || 400);
-  }
+    if (result.status >= 400) return result.body;
+    return result.body;
+  });
 }
 
 export default {

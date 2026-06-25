@@ -50,7 +50,9 @@ function loadStyleReference(style) {
   });
 }
 
-async function fitOutputForVercel(base64) {
+async function fitOutputForVercel(base64, { skipCompression = false } = {}) {
+  if (skipCompression) return base64;
+
   const source = Buffer.from(base64, "base64");
   const attempts = [
     { quality: 88 },
@@ -113,7 +115,7 @@ function resolveConfig(configOrApiKey = {}, options = {}) {
   };
 }
 
-async function callArk({ prompt, image, style, size, apiKey, styleReference }) {
+async function callArk({ prompt, image, style, size, apiKey, styleReference, skipCompression }) {
   if (!apiKey) return fail(503, "尚未配置 ARK_API_KEY，请在部署环境中配置后重新部署");
 
   const upstream = await fetch(ARK_ENDPOINT, {
@@ -153,11 +155,11 @@ async function callArk({ prompt, image, style, size, apiKey, styleReference }) {
 
   const base64 = result?.data?.[0]?.b64_json;
   if (!base64) return fail(502, "火山引擎 Ark 未返回生成图片");
-  const fitted = await fitOutputForVercel(base64);
+  const fitted = await fitOutputForVercel(base64, { skipCompression });
   return { status: 200, body: { image: `data:image/jpeg;base64,${fitted}`, provider: "ark", model: ARK_MODEL_ID } };
 }
 
-async function callAgnes({ prompt, image, size, apiKey }) {
+async function callAgnes({ prompt, image, size, apiKey, skipCompression }) {
   if (!apiKey) return fail(503, "尚未配置 AGNES_API_KEY，请在部署环境中配置后重新部署");
 
   const agnesSize = agnesSizes.get(size) || size;
@@ -199,7 +201,7 @@ async function callAgnes({ prompt, image, size, apiKey }) {
   const item = result?.data?.[0] || result?.images?.[0] || result?.output?.[0];
   const base64 = item?.b64_json || item?.base64 || item?.image_base64 || result?.b64_json;
   const url = item?.url || item?.image_url || result?.url;
-  const fitted = await fitOutputForVercel(base64 || await imageUrlToBase64(url));
+  const fitted = await fitOutputForVercel(base64 || await imageUrlToBase64(url), { skipCompression });
   return { status: 200, body: { image: `data:image/jpeg;base64,${fitted}`, provider: "agnes", model: AGNES_MODEL_ID } };
 }
 
@@ -218,10 +220,10 @@ export async function generateImage(body, configOrApiKey = {}, options = {}) {
 
   try {
     if (provider === "agnes") {
-      return await callAgnes({ prompt, image, size, apiKey: config.agnesApiKey });
+      return await callAgnes({ prompt, image, size, apiKey: config.agnesApiKey, skipCompression: config.skipCompression });
     }
     if (provider !== "ark") return fail(400, `不支持的图像模型提供方 ${provider}`);
-    return await callArk({ prompt, image, style, size, apiKey: config.arkApiKey, styleReference: config.styleReference });
+    return await callArk({ prompt, image, style, size, apiKey: config.arkApiKey, styleReference: config.styleReference, skipCompression: config.skipCompression });
   } catch (error) {
     const timedOut = error.name === "TimeoutError" || error.name === "AbortError";
     return fail(error.status || (timedOut ? 504 : 500), timedOut ? "图片生成超时，请稍后重试" : error.message || "图片生成失败");

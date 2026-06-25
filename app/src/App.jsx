@@ -667,6 +667,7 @@ export function App() {
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(result.error || "图片生成失败，请稍后重试");
+      if (result.error || !result.image) throw new Error(result.error || "图片生成失败，请稍后重试");
       setGeneratedImage(result.image);
       setScreen("editor");
     } catch (error) {
