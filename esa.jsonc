@@ -1,0 +1,10 @@
+{
+  "name": "refristicker",
+  "entry": "./app/esa-entry.js",
+  "installCommand": "cd app && npm install",
+  "buildCommand": "cd app && npm run build",
+  "assets": {
+    "directory": "./app/dist",
+    "notFoundStrategy": "singlePageApplication"
+  }
+}
