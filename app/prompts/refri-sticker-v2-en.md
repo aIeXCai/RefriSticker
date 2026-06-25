@@ -39,19 +39,19 @@ Crisp refined travel comic illustration: clean and confident linework, clear fla
 ## composition.portrait
 
 ```text
-4:5 vertical composition. Subject centered or in the upper half, suited to people, architecture, or receding street scenes.
+4:5 vertical composition. Match the framing and subject of the input photo. The subject and surrounding scene fill the frame edge-to-edge.
 ```
 
 ## composition.square
 
 ```text
-1:1 square composition. Subject concentrated and centered, suited to group photos, food, or close-up scenes.
+1:1 square composition. Match the framing and subject of the input photo. Subject centered and balanced, filling the frame edge-to-edge.
 ```
 
 ## composition.landscape
 
 ```text
-4:3 horizontal composition. Emphasize lateral space and the panoramic relationship, suited to wide scenery or group photos.
+4:3 horizontal composition. Match the framing and subject of the input photo. Emphasize the lateral expanse captured in the input photo, edge-to-edge.
 ```
 
 ## negative
