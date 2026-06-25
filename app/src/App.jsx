@@ -490,7 +490,7 @@ function Loading({ onCancel, onRetry, prompt, error }) {
       <h1 key={textIndex} className="loading-text">{messages[textIndex]}</h1>
       <p>每一次生成都像重新翻开一段旅程</p>
       <div className="message-dots">{messages.map((_, i) => <i key={i} className={i === textIndex ? "active" : ""} />)}</div>
-      <div className="loading-time">通常需要 20-30 秒左右 · 已等待 <b>{elapsed}</b> 秒</div>
+      <div className="loading-time">通常需要 45-60 秒左右 · 已等待 <b>{elapsed}</b> 秒</div>
       <button className="text-button" onClick={onCancel}>取消生成</button>
     </section>
   );
