@@ -96,9 +96,17 @@ cp .env.example .env.local
 编辑 `app/.env.local`,把 `ARK_API_KEY` 替换成你自己的:
 
 ```env
+IMAGE_PROVIDER=ark
 # 火山引擎方舟 → API Key 管理 → 创建
 # 详见 https://console.volcengine.com/ark/region:ark+cn-beijing/apikey
 ARK_API_KEY=your_ark_api_key_here
+```
+
+也可以切到 Agnes Image 2.1 Flash 试效果:
+
+```env
+IMAGE_PROVIDER=agnes
+AGNES_API_KEY=your_agnes_api_key_here
 ```
 
 ### 3. 启动开发服务
@@ -126,7 +134,9 @@ npm run preview    # 本地预览生产构建
 
 | 变量 | 必填 | 说明 |
 |---|---|---|
-| `ARK_API_KEY` | ✅ | 火山引擎方舟密钥。缺失时 `/api/generate-image` 返回 503 |
+| `IMAGE_PROVIDER` | 否 | 图像模型提供方，`ark` 或 `agnes`，默认 `ark` |
+| `ARK_API_KEY` | 使用 Ark 时 ✅ | 火山引擎方舟密钥。缺失时 `/api/generate-image` 返回 503 |
+| `AGNES_API_KEY` | 使用 Agnes 时 ✅ | Agnes AI 密钥。设置 `IMAGE_PROVIDER=agnes` 后生效 |
 
 ### 三种生成尺寸
 

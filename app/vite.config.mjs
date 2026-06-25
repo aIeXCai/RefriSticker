@@ -21,11 +21,11 @@ async function readJson(req) {
   return JSON.parse(Buffer.concat(chunks).toString("utf8"));
 }
 
-function arkSeedream(apiKey) {
+function imageGenerationProxy(config) {
   const handler = async (req, res, next) => {
     if (req.url !== "/api/generate-image" || req.method !== "POST") return next();
     try {
-      const result = await generateImage(await readJson(req), apiKey);
+      const result = await generateImage(await readJson(req), config);
       return sendJson(res, result.status, result.body);
     } catch (error) {
       return sendJson(res, error.status || 500, { error: error.message || "图片生成失败" });
@@ -33,7 +33,7 @@ function arkSeedream(apiKey) {
   };
 
   return {
-    name: "ark-seedream",
+    name: "image-generation-proxy",
     configureServer(server) { server.middlewares.use(handler); },
     configurePreviewServer(server) { server.middlewares.use(handler); },
   };
@@ -44,6 +44,10 @@ export default defineConfig(({ mode }) => {
   return {
     optimizeDeps: { include: ["react", "react-dom/client"] },
     server: { warmup: { clientFiles: ["./src/main.jsx"] } },
-    plugins: [react(), arkSeedream(env.ARK_API_KEY || process.env.ARK_API_KEY)],
+    plugins: [react(), imageGenerationProxy({
+      provider: env.IMAGE_PROVIDER || process.env.IMAGE_PROVIDER,
+      arkApiKey: env.ARK_API_KEY || process.env.ARK_API_KEY,
+      agnesApiKey: env.AGNES_API_KEY || process.env.AGNES_API_KEY,
+    })],
   };
 });

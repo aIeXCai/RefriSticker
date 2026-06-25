@@ -13,10 +13,18 @@
 在 Vercel 项目的 Production、Preview 和 Development 环境中添加：
 
 ```text
+IMAGE_PROVIDER=ark
 ARK_API_KEY=<火山方舟 API Key>
 ```
 
-不要添加 `VITE_` 前缀；该密钥只能由 `api/generate-image.js` 在服务端读取。
+如需测试 Agnes Image 2.1 Flash，改为：
+
+```text
+IMAGE_PROVIDER=agnes
+AGNES_API_KEY=<Agnes API Key>
+```
+
+不要给密钥添加 `VITE_` 前缀；密钥只能由 `api/generate-image.js` 在服务端读取。
 
 ## 运行配置
 

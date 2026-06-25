@@ -455,12 +455,8 @@ function DetailsStep({ style, setStyle, fields, setFields, format, template, set
 }
 
 function Loading({ onCancel, onRetry, prompt, error }) {
-  const [progress, setProgress] = useState(8);
-  useEffect(() => { const timer = setInterval(() => setProgress((p) => Math.min(p + 7, 96)), 160); return () => clearInterval(timer); }, []);
-  useEffect(() => setProgress(8), [error]);
   if (error) return <section className="loading-screen generation-error"><div className="loading-art"><PiX /></div><span>生成没有完成</span><h1>这次没画出来</h1><p>{error}</p><div className="error-actions"><button className="secondary" onClick={onCancel}>返回调整</button><button className="primary" onClick={onRetry}>重新生成</button></div></section>;
-  const text = progress < 35 ? "正在读取照片……" : progress < 72 ? "正在绘制旅行插画……" : "正在制作冰箱贴……";
-  return <section className="loading-screen"><div className="loading-art"><PiSparkle /></div><span>AI 旅行画师正在工作</span><h1>{text}</h1><p>每一次生成都像重新翻开一段旅程</p><div className="progress-track"><i style={{ width: `${progress}%` }} /></div><b>{progress}%</b><button className="text-button" onClick={onCancel}>取消生成</button></section>;
+  return <section className="loading-screen"><div className="loading-art"><PiSparkle /></div><span>AI 旅行画师正在工作</span><h1>正在绘制你的冰箱贴</h1><p>每一次生成都像重新翻开一段旅程</p><button className="text-button" onClick={onCancel}>取消生成</button></section>;
 }
 
 function Editor({ style, fields, imageUrl, generatedImage, layers, setLayers, format, template, setTemplate, theme, setTheme, onBack, onStyleChange }) {

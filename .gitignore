@@ -33,7 +33,10 @@ qa-*.png
 qa-*.html
 reference-design.png
 
-# User scratch folders (chat screenshots, ad-hoc uploads, etc.)
+# User scratch folders (chat screenshots, ad-hoc uploads, finished outputs, etc.)
 reference_images/实验图/
+reference_images/成品图/
 reference_images/test/
 reference_images/tmp/
+videos/
+*.mp4
