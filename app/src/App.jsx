@@ -243,7 +243,7 @@ function getPreviewTop(layer, compact, template) {
   return layer.y;
 }
 
-const ART_IMAGE_BLEED = 1.035;
+const ART_IMAGE_BLEED = 1.08;
 
 function drawImageCover(ctx, image, x, y, width, height, bleed = ART_IMAGE_BLEED) {
   const sourceWidth = image.naturalWidth || image.width;
