@@ -243,6 +243,17 @@ function getPreviewTop(layer, compact, template) {
   return layer.y;
 }
 
+function drawImageCover(ctx, image, x, y, width, height) {
+  const sourceWidth = image.naturalWidth || image.width;
+  const sourceHeight = image.naturalHeight || image.height;
+  const scale = Math.max(width / sourceWidth, height / sourceHeight);
+  const scaledWidth = sourceWidth * scale;
+  const scaledHeight = sourceHeight * scale;
+  const sourceX = (width - scaledWidth) / 2;
+  const sourceY = (height - scaledHeight) / 2;
+  ctx.drawImage(image, x + sourceX, y + sourceY, scaledWidth, scaledHeight);
+}
+
 function Logo({ onClick }) {
   return (
     <button className="logo" onClick={onClick} aria-label="回到首页">
@@ -569,7 +580,7 @@ function Editor({ style, fields, imageUrl, generatedImage, layers, setLayers, fo
     ctx.save(); ctx.beginPath(); ctx.roundRect(0, 0, canvas.width, canvas.height, radius); ctx.clip();
     ctx.fillStyle = template === "dark" ? palette.accent : palette.paper; ctx.fillRect(0, 0, canvas.width, canvas.height);
     const imageHeight = Math.round(innerHeight * (template === "dark" ? .8 : template === "collector" ? .735 : .775));
-    ctx.drawImage(img, 0, 0, img.width, img.height, inset, inset, innerWidth, imageHeight);
+    drawImageCover(ctx, img, inset, inset, innerWidth, imageHeight);
     const bandY = inset + imageHeight;
     const bandHeight = canvas.height - inset - bandY;
     ctx.fillStyle = template === "dark" ? palette.accent : palette.paper; ctx.fillRect(inset, bandY, innerWidth, bandHeight);
