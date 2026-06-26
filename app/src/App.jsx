@@ -243,15 +243,22 @@ function getPreviewTop(layer, compact, template) {
   return layer.y;
 }
 
-function drawImageCover(ctx, image, x, y, width, height) {
+const ART_IMAGE_BLEED = 1.035;
+
+function drawImageCover(ctx, image, x, y, width, height, bleed = ART_IMAGE_BLEED) {
   const sourceWidth = image.naturalWidth || image.width;
   const sourceHeight = image.naturalHeight || image.height;
-  const scale = Math.max(width / sourceWidth, height / sourceHeight);
+  const scale = Math.max(width / sourceWidth, height / sourceHeight) * bleed;
   const scaledWidth = sourceWidth * scale;
   const scaledHeight = sourceHeight * scale;
   const sourceX = (width - scaledWidth) / 2;
   const sourceY = (height - scaledHeight) / 2;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x, y, width, height);
+  ctx.clip();
   ctx.drawImage(image, x + sourceX, y + sourceY, scaledWidth, scaledHeight);
+  ctx.restore();
 }
 
 function Logo({ onClick }) {
