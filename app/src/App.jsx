@@ -121,6 +121,17 @@ function ensureFontLoaded(font) {
   });
 }
 
+async function ensureCanvasFontLoaded(layer, fontSize) {
+  const font = fontOptions.find((item) => item.value === layer.fontFamily);
+  await ensureFontLoaded(font);
+  if (!document.fonts?.load) return;
+  const fontSpec = `${layer.weight || 400} ${fontSize}px ${layer.fontFamily || "sans-serif"}`;
+  await Promise.race([
+    document.fonts.load(fontSpec, layer.text || " "),
+    new Promise((resolve) => window.setTimeout(resolve, 2500)),
+  ]);
+}
+
 async function imageSourceToDataUrl(source) {
   if (source?.startsWith("data:image/")) return source;
   const response = await fetch(source);
@@ -259,6 +270,127 @@ function drawImageCover(ctx, image, x, y, width, height, bleed = ART_IMAGE_BLEED
   ctx.clip();
   ctx.drawImage(image, x + sourceX, y + sourceY, scaledWidth, scaledHeight);
   ctx.restore();
+}
+
+function getLayerLetterSpacing(layer, fontSize) {
+  return fontSize * (layer.id === "date" ? .035 : .025);
+}
+
+function setCanvasTextStyle(ctx, layer, fontSize) {
+  ctx.font = `${layer.weight || 400} ${fontSize}px ${layer.fontFamily || "sans-serif"}`;
+  if ("letterSpacing" in ctx) ctx.letterSpacing = "0px";
+  if ("fontStretch" in ctx) ctx.fontStretch = layer.id === "caption" ? "condensed" : "normal";
+}
+
+function measureLayerText(ctx, text, letterSpacing) {
+  const characters = Array.from(text || "");
+  if (!characters.length) return 0;
+  return characters.reduce((width, character) => width + ctx.measureText(character).width, 0) + letterSpacing * (characters.length - 1);
+}
+
+function drawLayerText(ctx, text, x, y, letterSpacing) {
+  const characters = Array.from(text || "");
+  if (!characters.length) return;
+  const width = measureLayerText(ctx, text, letterSpacing);
+  const originalAlign = ctx.textAlign;
+  let cursor = x;
+  if (originalAlign === "center") cursor -= width / 2;
+  if (originalAlign === "right" || originalAlign === "end") cursor -= width;
+  ctx.textAlign = "left";
+  characters.forEach((character) => {
+    ctx.fillText(character, cursor, y);
+    cursor += ctx.measureText(character).width + letterSpacing;
+  });
+  ctx.textAlign = originalAlign;
+}
+
+function getLayerTextBox(ctx, layer, canvas, fontSize) {
+  setCanvasTextStyle(ctx, layer, fontSize);
+  const width = measureLayerText(ctx, layer.text, getLayerLetterSpacing(layer, fontSize));
+  const height = fontSize * (layer.id === "date" ? 1.05 : .95);
+  const centerX = canvas.width * layer.x / 100;
+  const centerY = canvas.height * layer.y / 100;
+  return { x: centerX - width / 2, y: centerY - height / 2, width, height, centerX, centerY };
+}
+
+function loadCanvasImage(source) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.crossOrigin = "anonymous";
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("无法读取预览图片"));
+    image.src = source;
+  });
+}
+
+async function drawStickerCanvas(canvas, { image, layers, selectedFormat, template, palette, activeLayer }) {
+  canvas.width = selectedFormat.canvas.width;
+  canvas.height = Math.round(selectedFormat.canvas.height * 1.25);
+  const ctx = canvas.getContext("2d");
+  const fontScale = Math.min(canvas.width, canvas.height) / 460;
+  await Promise.all(layers.filter((layer) => layer.visible).map((layer) => ensureCanvasFontLoaded(layer, layer.size * fontScale)));
+  await Promise.race([document.fonts?.ready || Promise.resolve(), new Promise((resolve) => window.setTimeout(resolve, 2500))]);
+  const img = await loadCanvasImage(image);
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const inset = Math.round(Math.min(canvas.width, canvas.height) * (template === "dark" ? .018 : .027));
+  const innerWidth = canvas.width - inset * 2, innerHeight = canvas.height - inset * 2;
+  const radius = Math.round(Math.min(canvas.width, canvas.height) * .022);
+  ctx.save(); ctx.beginPath(); ctx.roundRect(0, 0, canvas.width, canvas.height, radius); ctx.clip();
+  ctx.fillStyle = template === "dark" ? palette.accent : palette.paper; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const imageHeight = Math.round(innerHeight * (template === "dark" ? .8 : template === "collector" ? .735 : .775));
+  drawImageCover(ctx, img, inset, inset, innerWidth, imageHeight);
+  const bandY = inset + imageHeight;
+  const bandHeight = canvas.height - inset - bandY;
+  ctx.fillStyle = template === "dark" ? palette.accent : palette.paper; ctx.fillRect(inset, bandY, innerWidth, bandHeight);
+  ctx.strokeStyle = palette.accent; ctx.lineWidth = Math.max(4, Math.round(canvas.width * .004));
+  if (template === "collector") {
+    ctx.strokeRect(inset, inset, innerWidth, innerHeight);
+    const ruleGap = Math.round(bandHeight * .16);
+    ctx.beginPath(); ctx.moveTo(inset + ruleGap, bandY + ruleGap); ctx.lineTo(canvas.width - inset - ruleGap, bandY + ruleGap); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(inset + ruleGap, canvas.height - inset - ruleGap); ctx.lineTo(canvas.width - inset - ruleGap, canvas.height - inset - ruleGap); ctx.stroke();
+  } else if (template === "white") {
+    ctx.strokeRect(inset, inset, innerWidth, innerHeight);
+    ctx.beginPath(); ctx.moveTo(inset, bandY); ctx.lineTo(canvas.width - inset, bandY); ctx.stroke();
+  }
+  layers.filter((l) => l.visible).forEach((l) => {
+    ctx.fillStyle = l.color; ctx.textAlign = l.align || "center"; ctx.textBaseline = "middle";
+    let fontSize = l.size * fontScale; const maxWidth = innerWidth * .9;
+    while (fontSize > 16) {
+      setCanvasTextStyle(ctx, l, fontSize);
+      if (measureLayerText(ctx, l.text, getLayerLetterSpacing(l, fontSize)) <= maxWidth) break;
+      fontSize -= 1;
+    }
+    setCanvasTextStyle(ctx, l, fontSize);
+    drawLayerText(ctx, l.text, canvas.width * l.x / 100, canvas.height * l.y / 100, getLayerLetterSpacing(l, fontSize));
+    if (activeLayer === l.id) {
+      const box = getLayerTextBox(ctx, l, canvas, fontSize);
+      const pad = Math.max(12, fontSize * .18);
+      ctx.save();
+      ctx.strokeStyle = template === "dark" ? "#fff4d8" : "#239a8a";
+      ctx.lineWidth = Math.max(2, Math.round(canvas.width * .0015));
+      ctx.setLineDash([10, 8]);
+      ctx.strokeRect(box.x - pad, box.y - pad, box.width + pad * 2, box.height + pad * 2);
+      ctx.restore();
+    }
+  });
+  ctx.restore();
+}
+
+function StickerCanvasPreview({ image, layers, selectedFormat, template, palette, activeLayer, onPointerDown }) {
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const canvas = canvasRef.current;
+    if (!canvas) return undefined;
+    drawStickerCanvas(canvas, { image, layers, selectedFormat, template, palette, activeLayer }).catch((error) => {
+      if (!cancelled) console.error(error);
+    });
+    return () => { cancelled = true; };
+  }, [image, layers, selectedFormat, template, palette, activeLayer]);
+
+  return <canvas ref={canvasRef} className="sticker-canvas-preview" onPointerDown={onPointerDown} />;
 }
 
 function Logo({ onClick }) {
@@ -548,6 +680,16 @@ function Editor({ style, fields, imageUrl, generatedImage, layers, setLayers, fo
     const onUp = () => { window.removeEventListener("pointermove", onMove); window.removeEventListener("pointerup", onUp); setHistory((h) => h.concat([layers]).slice(-20)); };
     window.addEventListener("pointermove", onMove); window.addEventListener("pointerup", onUp);
   };
+  const onCanvasPointerDown = (event) => {
+    const bounds = previewRef.current.getBoundingClientRect();
+    const y = ((event.clientY - bounds.top) / bounds.height) * 100;
+    const candidates = layers.filter((layer) => layer.visible);
+    const picked = candidates.reduce((closest, layer) => {
+      const distance = Math.abs(layer.y - y);
+      return !closest || distance < closest.distance ? { layer, distance } : closest;
+    }, null)?.layer || current;
+    if (picked) onLayerPointerDown(event, picked.id);
+  };
   const undo = () => { if (historyIndex > 0) { setHistoryIndex(historyIndex - 1); setLayers(history[historyIndex - 1]); } };
   const redo = () => { if (historyIndex < history.length - 1) { setHistoryIndex(historyIndex + 1); setLayers(history[historyIndex + 1]); } };
   const setTextColor = (color) => commitLayers(layers.map((item) => item.id === active ? { ...item, color } : item));
@@ -575,40 +717,8 @@ function Editor({ style, fields, imageUrl, generatedImage, layers, setLayers, fo
   };
 
   const download = async () => {
-    await Promise.all(layers.filter((layer) => layer.visible).map((layer) => ensureFontLoaded(fontOptions.find((font) => font.value === layer.fontFamily))));
-    await Promise.race([document.fonts?.ready || Promise.resolve(), new Promise((resolve) => window.setTimeout(resolve, 2500))]);
     const canvas = document.createElement("canvas"); canvas.width = selectedFormat.canvas.width; canvas.height = Math.round(selectedFormat.canvas.height * 1.25);
-    const ctx = canvas.getContext("2d");
-    const img = new Image(); img.crossOrigin = "anonymous"; img.src = resultImage;
-    await img.decode();
-    const inset = Math.round(Math.min(canvas.width, canvas.height) * (template === "dark" ? .018 : .027));
-    const innerWidth = canvas.width - inset * 2, innerHeight = canvas.height - inset * 2;
-    const radius = Math.round(Math.min(canvas.width, canvas.height) * .022);
-    ctx.save(); ctx.beginPath(); ctx.roundRect(0, 0, canvas.width, canvas.height, radius); ctx.clip();
-    ctx.fillStyle = template === "dark" ? palette.accent : palette.paper; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    const imageHeight = Math.round(innerHeight * (template === "dark" ? .8 : template === "collector" ? .735 : .775));
-    drawImageCover(ctx, img, inset, inset, innerWidth, imageHeight);
-    const bandY = inset + imageHeight;
-    const bandHeight = canvas.height - inset - bandY;
-    ctx.fillStyle = template === "dark" ? palette.accent : palette.paper; ctx.fillRect(inset, bandY, innerWidth, bandHeight);
-    ctx.strokeStyle = palette.accent; ctx.lineWidth = Math.max(4, Math.round(canvas.width * .004));
-    if (template === "collector") {
-      ctx.strokeRect(inset, inset, innerWidth, innerHeight);
-      const ruleGap = Math.round(bandHeight * .16);
-      ctx.beginPath(); ctx.moveTo(inset + ruleGap, bandY + ruleGap); ctx.lineTo(canvas.width - inset - ruleGap, bandY + ruleGap); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(inset + ruleGap, canvas.height - inset - ruleGap); ctx.lineTo(canvas.width - inset - ruleGap, canvas.height - inset - ruleGap); ctx.stroke();
-    } else if (template === "white") {
-      ctx.strokeRect(inset, inset, innerWidth, innerHeight);
-      ctx.beginPath(); ctx.moveTo(inset, bandY); ctx.lineTo(canvas.width - inset, bandY); ctx.stroke();
-    }
-    const fontScale = Math.min(canvas.width, canvas.height) / 460;
-    layers.filter((l) => l.visible).forEach((l) => {
-      ctx.fillStyle = l.color; ctx.textAlign = l.align || "center"; ctx.textBaseline = "middle";
-      let fontSize = l.size * fontScale; const maxWidth = innerWidth * .9;
-      do { ctx.font = `${l.weight} ${fontSize}px ${l.fontFamily || "sans-serif"}`; fontSize -= 1; } while (ctx.measureText(l.text).width > maxWidth && fontSize > 16);
-      ctx.fillText(l.text, canvas.width * l.x / 100, canvas.height * l.y / 100, maxWidth);
-    });
-    ctx.restore();
+    await drawStickerCanvas(canvas, { image: resultImage, layers, selectedFormat, template, palette });
     const link = document.createElement("a"); link.download = `RefriSticker-${selectedFormat.ratioLabel.replace(":", "x")}.png`; link.href = canvas.toDataURL("image/png"); link.click();
     setToast("图片已下载，旅途记忆保存好啦"); setTimeout(() => setToast(""), 2600);
   };
@@ -633,7 +743,9 @@ function Editor({ style, fields, imageUrl, generatedImage, layers, setLayers, fo
       </aside>
       <section className="preview-workspace">
         <div className="source-pill"><img src={imageUrl || "/assets/kyoto-photo.png"} alt="原始照片" /> {selectedFormat.label} {selectedFormat.ratioLabel}</div>
-        <div className={`preview-frame format-${format} template-${template}`} style={{ aspectRatio: stickerRatio, width: selectedFormat.previewWidth }} ref={previewRef}><StickerCard image={resultImage} layers={layers} activeLayer={active} onLayerPointerDown={onLayerPointerDown} format={format} template={template} theme={theme} /></div>
+        <div className={`preview-frame format-${format} template-${template}`} style={{ aspectRatio: stickerRatio, width: selectedFormat.previewWidth }} ref={previewRef}>
+          <StickerCanvasPreview image={resultImage} layers={layers} selectedFormat={selectedFormat} template={template} palette={palette} activeLayer={active} onPointerDown={onCanvasPointerDown} />
+        </div>
         <p><PiShieldCheck /> 虚线范围内为安全打印区域</p>
       </section>
     </div>
